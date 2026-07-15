@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'warehouse' => \App\Http\Middleware\EnsureWarehouseSelected::class,
             'role' => \App\Http\Middleware\EnsureRole::class,
         ]);
+        
+        $middleware->web(append: [
+            \App\Http\Middleware\BlockViewerMutations::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

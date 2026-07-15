@@ -18,29 +18,44 @@
         <link rel="icon" href="{{ asset($appFavicon) }}">
     @endif
     <style>
+        body { margin: 0; overflow: hidden; }
+        
+        .video-bg {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            object-fit: cover;
+            z-index: -1;
+        }
+        
         .login-page {
             min-height: 100vh;
             display: flex;
             align-items: center;
-            justify-content: center;
-            background: var(--bg-primary);
-            padding: 20px;
+            justify-content: flex-end; /* Align to the right side */
+            padding: 40px 8%;
+            background: transparent;
         }
 
         .login-card {
             width: 100%;
-            max-width: 420px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 40px 36px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
-            animation: fadeInUp 0.5s ease-out;
+            max-width: 440px;
+            /* 3D Glassmorphism Effect (Blue Theme) */
+            background: rgba(30, 64, 175, 0.5); /* Blue background */
+            backdrop-filter: blur(20px) saturate(160%);
+            -webkit-backdrop-filter: blur(20px) saturate(160%);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-top: 1px solid rgba(255, 255, 255, 0.4);
+            border-left: 1px solid rgba(255, 255, 255, 0.4);
+            border-radius: 24px;
+            padding: 48px 40px;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), inset 0 0 0 1px rgba(255,255,255,0.1);
+            animation: fadeInUp 0.7s cubic-bezier(0.2, 0.8, 0.2, 1);
+            color: #ffffff;
         }
 
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(24px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateY(30px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         .login-header {
@@ -48,125 +63,170 @@
             margin-bottom: 32px;
         }
 
+        /* Larger & Clearer Logo with White BG for Contrast */
         .login-header .logo-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, var(--accent-blue), var(--accent-indigo));
+            width: 90px;
+            height: 90px;
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.95); /* Solid white for logo contrast */
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.8);
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            margin-bottom: 16px;
-            box-shadow: 0 8px 30px rgba(79, 70, 229, 0.3);
+            margin-bottom: 24px;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), inset 0 4px 10px rgba(0,0,0,0.1);
         }
 
-        .login-header .logo-icon i { font-size: 26px; color: #fff; }
-        .login-header .logo-icon img { width: 34px; height: 34px; object-fit: contain; }
+        .login-header .logo-icon i { font-size: 44px; color: var(--accent-blue, #3b82f6); }
+        .login-header .logo-icon img { 
+            width: 70px; 
+            height: 70px; 
+            object-fit: contain; 
+            /* No drop shadow needed if the background is solid white */
+        }
 
         .login-header h1 {
-            font-size: 22px;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 6px;
+            font-size: 28px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.4);
         }
 
         .login-header p {
-            font-size: 13px;
-            color: var(--text-secondary);
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
 
-        .login-form .form-group { margin-bottom: 18px; }
+        .login-form .form-group { margin-bottom: 20px; }
 
         .login-form label {
             display: block;
             font-size: 13px;
-            font-weight: 500;
-            color: var(--text-secondary);
-            margin-bottom: 7px;
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 8px;
+            letter-spacing: 0.3px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
 
         .login-input-wrap { position: relative; }
 
         .login-input-wrap i.field-icon {
             position: absolute;
-            left: 14px;
+            left: 16px;
             top: 50%;
             transform: translateY(-50%);
-            color: var(--text-muted);
-            font-size: 14px;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 15px;
         }
 
+        .toggle-password {
+            position: absolute;
+            right: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #000000; /* Changed to black */
+            cursor: pointer;
+            font-size: 15px;
+            padding: 5px;
+            transition: color 0.2s ease;
+        }
+        .toggle-password:hover { color: #333333; }
+
+        /* Glass Input Fields */
         .login-form input[type="email"],
-        .login-form input[type="password"] {
+        .login-form input[type="password"],
+        .login-form input[type="text"] {
             width: 100%;
-            padding: 12px 14px 12px 40px;
-            background: var(--bg-primary);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            color: var(--text-primary);
-            font-size: 14px;
+            padding: 14px 44px;
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 15px;
+            font-weight: 500;
             font-family: inherit;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            transition: all 0.2s ease;
         }
-
+        .login-form input::placeholder { color: rgba(255, 255, 255, 0.6); }
         .login-form input:focus {
             outline: none;
-            border-color: var(--accent-blue);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+            background: rgba(255, 255, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.2);
         }
 
         .login-remember {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             font-size: 13px;
-            color: var(--text-secondary);
-            margin-bottom: 22px;
+            color: rgba(255, 255, 255, 0.8);
+            margin-bottom: 28px;
+            cursor: pointer;
         }
 
-        .login-remember input { width: 15px; height: 15px; accent-color: var(--accent-blue); }
+        .login-remember input { 
+            width: 16px; height: 16px; 
+            accent-color: var(--accent-blue); 
+            cursor: pointer;
+        }
 
         .login-form .btn-login {
             width: 100%;
-            padding: 13px;
-            font-size: 15px;
-            font-weight: 600;
-            border: none;
-            border-radius: 10px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 700;
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 12px;
             color: #fff;
-            background: linear-gradient(135deg, var(--accent-blue), var(--accent-indigo));
+            background: linear-gradient(135deg, #10b981, #059669); /* Emerald Green to stand out on Blue */
             cursor: pointer;
-            transition: transform 0.15s ease, box-shadow 0.2s ease;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
 
         .login-form .btn-login:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 8px 24px rgba(79, 70, 229, 0.35);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.6);
+            background: linear-gradient(135deg, #059669, #047857);
         }
 
         .login-error {
-            background: rgba(239, 68, 68, 0.12);
-            border: 1px solid rgba(239, 68, 68, 0.3);
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.4);
             color: #fca5a5;
-            border-radius: 10px;
-            padding: 11px 14px;
+            border-radius: 12px;
+            padding: 12px 16px;
             font-size: 13px;
-            margin-bottom: 20px;
+            font-weight: 500;
+            margin-bottom: 24px;
             display: flex;
             align-items: center;
-            gap: 9px;
+            gap: 10px;
+            backdrop-filter: blur(10px);
         }
 
         .login-footer {
             text-align: center;
-            margin-top: 26px;
-            font-size: 11px;
-            color: var(--text-muted);
+            margin-top: 32px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
         }
     </style>
 </head>
 
 <body>
+    <video autoplay loop muted playsinline class="video-bg">
+        <source src="{{ asset('videos/Background_Login.mp4') }}" type="video/mp4">
+    </video>
     <div class="login-page">
         <div class="login-card">
             <div class="login-header">
@@ -205,6 +265,7 @@
                         <i class="fa-solid fa-lock field-icon"></i>
                         <input type="password" name="password" id="password"
                             placeholder="Masukkan password" required>
+                        <i class="fa-solid fa-eye toggle-password" id="togglePassword" title="Tampilkan Password"></i>
                     </div>
                 </div>
 
@@ -224,5 +285,22 @@
             </div>
         </div>
     </div>
+
+    <script>
+        document.getElementById('togglePassword').addEventListener('click', function() {
+            const passwordInput = document.getElementById('password');
+            const icon = this;
+            
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        });
+    </script>
 </body>
 </html>

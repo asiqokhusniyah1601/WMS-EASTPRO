@@ -1,6 +1,7 @@
 @props([
     'alert',
     'variant' => 'feed',
+    'alertId' => null,
 ])
 
 @php
@@ -30,7 +31,7 @@
 @endphp
 
 @if($variant === 'bell')
-    <a href="{{ route('alerts') }}" class="notif-item {{ $level }}">
+    <a href="{{ route('alerts') }}" class="notif-item {{ $level }}" data-alert-id="{{ $alertId }}">
         <i class="fa-solid {{ $icon }}"></i>
         <div class="notif-text">
             <div class="notif-msg">{!! $message !!}</div>

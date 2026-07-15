@@ -18,10 +18,10 @@ use Illuminate\Support\Collection;
 class ReportService
 {
     /** Aksi transaksi yang dianggap barang MASUK ke gudang. */
-    public const IN_ACTIONS = ['RECEIVING', 'TRANSFER_IN', 'RETURNED', 'QC_PASSED'];
+    public const IN_ACTIONS = ['RECEIVING', 'TRANSFER_IN', 'RETURNED'];
 
     /** Aksi transaksi yang dianggap barang KELUAR dari gudang. */
-    public const OUT_ACTIONS = ['ISSUED', 'TRANSFER_OUT', 'DISPOSED', 'INSTALLED', 'QC_FAILED'];
+    public const OUT_ACTIONS = ['ISSUED', 'TRANSFER_OUT', 'DISPOSED', 'INSTALLED', 'QC_FAILED', 'PENDING_ACCEPTANCE'];
 
     /** Aksi MASUK/KELUAR untuk aksesoris (label aksi berbeda dengan device). */
     public const ACC_IN_ACTIONS  = ['RECEIVING', 'TRANSFER_IN', 'RETURN', 'RETURNED'];
@@ -45,12 +45,20 @@ class ReportService
 
         $periodInput = $input['period'] ?? 'day';
         $period = in_array($periodInput, ['day', 'week', 'month'], true) ? $periodInput : 'day';
-        $warehouse = !empty($input['warehouse']) && $input['warehouse'] !== 'all' ? $input['warehouse'] : null;
+        $warehouse = $input['warehouse'] ?? session('active_warehouse_code');
+        if (empty($warehouse) || $warehouse === 'all' || $warehouse === '__global__') {
+            $warehouse = null;
+        }
+
+        if (is_string($warehouse) && preg_match('/^__region_([A-Z]+)__$/', $warehouse, $m)) {
+            $regionWarehouses = \App\Models\Warehouse::where('region', $m[1])->pluck('code')->toArray();
+            $warehouse = empty($regionWarehouses) ? 'NONE_FOUND' : $regionWarehouses;
+        }
 
         return compact('from', 'to', 'period', 'warehouse');
     }
 
-    private function scopeWarehouse($query, ?string $warehouse, array $columns = ['from_location', 'to_location'])
+    private function scopeWarehouse($query, $warehouse, array $columns = ['from_location', 'to_location'])
     {
         if (!$warehouse) {
             return $query;
@@ -58,7 +66,11 @@ class ReportService
 
         return $query->where(function ($q) use ($warehouse, $columns) {
             foreach ($columns as $col) {
-                $q->orWhere($col, $warehouse);
+                if (is_array($warehouse)) {
+                    $q->orWhereIn($col, $warehouse);
+                } else {
+                    $q->orWhere($col, $warehouse);
+                }
             }
         });
     }
@@ -285,7 +297,7 @@ class ReportService
     /**
      * C. Aging / dead stock: di gudang & di tangan teknisi.
      */
-    public function aging(?string $warehouse = null): array
+    public function aging($warehouse = null): array
     {
         $lastMovement = DeviceTransaction::query()
             ->selectRaw('device_id, max(created_at) as last_at')
@@ -297,7 +309,11 @@ class ReportService
         // Dead stock di gudang (IN_STOCK)
         $stockQuery = Device::query()->where('status', 'IN_STOCK');
         if ($warehouse) {
-            $stockQuery->where('warehouse_code', $warehouse);
+            if (is_array($warehouse)) {
+                $stockQuery->whereIn('warehouse_code', $warehouse);
+            } else {
+                $stockQuery->where('warehouse_code', $warehouse);
+            }
         }
         $stockDevices = $stockQuery->get();
 
@@ -435,7 +451,13 @@ class ReportService
         $actionCounts = (clone $txInRange)->selectRaw('action, count(*) as c')->groupBy('action')->pluck('c', 'action')->toArray();
 
         $statusSnapshot = Device::query()
-            ->when($f['warehouse'], fn($q) => $q->where('warehouse_code', $f['warehouse']))
+            ->when($f['warehouse'], function($q) use ($f) {
+                if (is_array($f['warehouse'])) {
+                    $q->whereIn('warehouse_code', $f['warehouse']);
+                } else {
+                    $q->where('warehouse_code', $f['warehouse']);
+                }
+            })
             ->selectRaw('status, count(*) as c')->groupBy('status')->pluck('c', 'status')->toArray();
 
         return [
@@ -466,7 +488,7 @@ class ReportService
 
     private function stockCardDevice(array $f): array
     {
-        $typeMap = Device::pluck('type', 'id');
+        $modelMap = Device::pluck('model', 'id');
 
         $query = DeviceTransaction::query()
             ->where('created_at', '<=', $f['to'])
@@ -475,11 +497,14 @@ class ReportService
 
         $entries = $query->orderBy('created_at')
             ->get(['device_id', 'device_sn', 'action', 'created_at'])
-            ->map(function ($t) use ($typeMap) {
-                $type = $typeMap[$t->device_id] ?? 'Perangkat Lain';
+            ->map(function ($t) use ($modelMap) {
+                $model = $modelMap[$t->device_id] ?? 'Model Lain';
+                if (empty($model) || $model === '-') {
+                    $model = 'Model Lain';
+                }
                 return [
-                    'key'  => $type,
-                    'name' => $type,
+                    'key'  => $model,
+                    'name' => $model,
                     'dir'  => in_array($t->action, self::IN_ACTIONS, true) ? 'in' : 'out',
                     'qty'  => 1,
                     'date' => $t->created_at,
@@ -616,6 +641,31 @@ class ReportService
 
     public function warehouseOptions(): Collection
     {
-        return Warehouse::orderBy('name')->get(['code', 'name']);
+        $user = auth()->user();
+        if ($user && $user->isWarehouseBound()) {
+            return collect([(object)['code' => $user->warehouse_code, 'name' => \App\Models\Warehouse::where('code', $user->warehouse_code)->value('name') ?? $user->warehouse_code]]);
+        }
+        
+        $activeCode = session('active_warehouse_code');
+        $globalMode = session('global_mode');
+        
+        $options = collect();
+
+        if ($globalMode) {
+            $options->push((object)['code' => '__region_EAST__', 'name' => 'East Area']);
+            $options->push((object)['code' => '__region_WEST__', 'name' => 'West Area']);
+        } elseif (is_string($activeCode) && preg_match('/^__region_([A-Z]+)__$/', $activeCode, $m)) {
+            $regionWarehouses = \App\Models\Warehouse::where('region', $m[1])->orderBy('name')->get();
+            foreach ($regionWarehouses as $rw) {
+                $options->push((object)['code' => $rw->code, 'name' => $rw->name]);
+            }
+        } else {
+            $wh = \App\Models\Warehouse::where('code', $activeCode)->first();
+            if ($wh) {
+                $options->push((object)['code' => $wh->code, 'name' => $wh->name]);
+            }
+        }
+        
+        return $options;
     }
 }

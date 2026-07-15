@@ -14,6 +14,7 @@ class DeviceModel extends Model
     protected $fillable = [
         'brand',
         'type',
-        'model'
+        'model',
+        'min_stock'
     ];
 }

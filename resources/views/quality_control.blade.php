@@ -60,7 +60,11 @@
                             <option value="{{ $m }}">{{ $m }}</option>
                         @endforeach
                     </select>
-                    <input type="text" id="snSearch" class="form-control" placeholder="Cari SN..." style="width:auto; min-width:150px; padding:6px 12px; font-size:13px;">
+                    <div style="position: relative; display: flex; align-items: center;">
+                        <i class="fa-solid fa-barcode" style="position: absolute; left: 10px; color: var(--text-muted);"></i>
+                        <input type="text" id="barcodeScanInput" class="form-control" placeholder="Scan Barcode QC..." style="width:auto; min-width:180px; padding:6px 12px 6px 30px; font-size:13px; border-color: var(--accent-indigo);" title="Scan barcode untuk langsung checklist" autofocus>
+                    </div>
+                    <input type="text" id="snSearch" class="form-control" placeholder="Cari Manual..." style="width:auto; min-width:130px; padding:6px 12px; font-size:13px;">
                 </div>
             </div>
 
@@ -105,8 +109,10 @@
                                 message="Unit baru akan muncul di sini setelah Receiving. QC hanya di gudang penerimaan pertama." />
                         @endforelse
                     </tbody>
+                    </tbody>
                 </table>
             </div>
+            <div id="paginationControls" style="display:flex; justify-content:center; align-items:center; gap:8px; margin: 15px 0;"></div>
         </div>
     </div>
 
@@ -324,21 +330,71 @@
     document.querySelectorAll('.qc-tab-btn').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
     showTab(initial);
 
-    // --- Incoming filters & bulk ---
+    // --- Paginasi & Filter ---
+    const rowsPerPage = 50;
+    let currentPage = 1;
+    let filteredRows = [];
+
     const checks = () => Array.from(document.querySelectorAll('.qc-check'));
     const checkedIds = () => checks().filter(c => c.checked && c.closest('tr').style.display !== 'none').map(c => c.value);
+    
     function applyFilter() {
         const model = (document.getElementById('modelFilter')?.value || '').toLowerCase();
         const sn = (document.getElementById('snSearch')?.value || '').trim().toUpperCase();
+        
+        filteredRows = [];
         document.querySelectorAll('.qc-row').forEach(r => {
             const okModel = !model || (r.dataset.model || '').toLowerCase() === model;
             const okSn = !sn || (r.dataset.sn || '').includes(sn);
-            r.style.display = (okModel && okSn) ? '' : 'none';
+            
+            if (okModel && okSn) {
+                filteredRows.push(r);
+            } else {
+                r.style.display = 'none';
+            }
         });
+        
+        currentPage = 1;
+        renderPagination();
+    }
+
+    function renderPagination() {
+        const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+        
+        filteredRows.forEach((r, index) => {
+            if (index >= (currentPage - 1) * rowsPerPage && index < currentPage * rowsPerPage) {
+                r.style.display = '';
+            } else {
+                r.style.display = 'none';
+            }
+        });
+        
+        const controls = document.getElementById('paginationControls');
+        if (controls) {
+            if (totalPages <= 1) {
+                controls.innerHTML = '';
+            } else {
+                controls.innerHTML = `
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>Prev</button>
+                    <span style="font-size:13px; color:var(--text-muted); padding:0 10px;">Hal ${currentPage} / ${totalPages} (${filteredRows.length} item)</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+                `;
+            }
+        }
         updateBulkBar();
     }
+
+    window.changePage = function(page) {
+        currentPage = page;
+        renderPagination();
+    };
+
     document.getElementById('modelFilter')?.addEventListener('change', applyFilter);
     document.getElementById('snSearch')?.addEventListener('input', applyFilter);
+    
+    // Inisialisasi awal
+    if (document.querySelector('.qc-row')) applyFilter();
+
     document.getElementById('checkAll')?.addEventListener('change', function () {
         checks().forEach(c => { if (c.closest('tr').style.display !== 'none') c.checked = this.checked; });
         updateBulkBar();
@@ -379,6 +435,56 @@
         document.getElementById('retQcTarget').textContent = sn;
         document.getElementById('retQcModal').style.display = 'flex';
     };
+
+    // --- Barcode Scanner Logic ---
+    const scanInput = document.getElementById('barcodeScanInput');
+    if (scanInput) {
+        let scanTimeout;
+        const processScan = function() {
+            let sn = scanInput.value.trim().toUpperCase();
+            if (!sn) return;
+
+            let row = document.querySelector(`.qc-row[data-sn="${sn}"]`);
+            if (row) {
+                let cb = row.querySelector('.qc-check');
+                if (cb && !cb.checked) {
+                    cb.checked = true;
+                    // Pindahkan row ke paling atas
+                    let tbody = document.getElementById('qcTbody');
+                    if (tbody) tbody.prepend(row);
+                    
+                    // Re-apply filter untuk update paginasi dan kembali ke halaman 1
+                    applyFilter(); 
+                }
+                
+                // Highlight
+                let originalBg = row.style.backgroundColor;
+                row.style.backgroundColor = '#dcfce7'; 
+                row.style.transition = 'background-color 0.5s';
+                setTimeout(() => { row.style.backgroundColor = originalBg; }, 1000);
+            } else {
+                scanInput.style.backgroundColor = '#fee2e2';
+                setTimeout(() => { scanInput.style.backgroundColor = ''; }, 400);
+            }
+            
+            scanInput.value = '';
+            scanInput.focus();
+        };
+
+        scanInput.addEventListener('input', function(e) {
+            clearTimeout(scanTimeout);
+            scanTimeout = setTimeout(processScan, 300);
+        });
+        
+        scanInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                clearTimeout(scanTimeout);
+                processScan();
+            }
+        });
+    }
+
 })();
 </script>
 @endsection

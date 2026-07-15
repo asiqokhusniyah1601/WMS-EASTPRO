@@ -13,6 +13,9 @@
         iconColor="var(--accent-amber)"
         title="Alert Center"
         subtitle="Notifikasi stok minimum, dead stock, dan prediksi tren AI yang membutuhkan perhatian.">
+        @if(auth()->user()?->isWarehouseBound())
+            <span class="badge badge-info" style="font-size: 12px;"><i class="fa-solid fa-lock"></i> Scope: {{ $warehouses[$view] ?? $view }}</span>
+        @else
         <form method="GET" action="{{ route('alerts') }}" style="display: flex; align-items: center; gap: 8px;">
             <i class="fa-solid fa-filter" style="color: var(--text-muted); font-size: 12px;"></i>
             <select name="warehouse" class="form-control" style="width: auto; min-width: 200px; padding: 6px 10px; font-size: 13px;" onchange="this.form.submit()">
@@ -22,6 +25,7 @@
                 @endforeach
             </select>
         </form>
+        @endif
     </x-page-header>
 
     <!-- Summary cards -->

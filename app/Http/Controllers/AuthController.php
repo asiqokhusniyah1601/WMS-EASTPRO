@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\WarehouseSessionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\ValidationException;
@@ -33,6 +34,8 @@ class AuthController extends Controller
         }
 
         $request->session()->regenerate();
+
+        WarehouseSessionService::syncForUser(Auth::user());
 
         return redirect()->intended(route('dashboard'));
     }

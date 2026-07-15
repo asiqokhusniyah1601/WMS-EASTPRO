@@ -11,7 +11,7 @@ class Warehouse extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    protected $fillable = ['code', 'name', 'type'];
+    protected $fillable = ['code', 'name', 'type', 'region'];
 
     public function devices(): HasMany
     {

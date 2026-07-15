@@ -19,7 +19,7 @@ class DashboardInsightService
      * @param  string|null  $warehouseCode  Limit insights to a single warehouse (null = global).
      * @return array
      */
-    public function getInsights(?string $warehouseCode = null)
+    public function getInsights($warehouseCode = null)
     {
         $insights = [
             'critical' => [],
@@ -31,7 +31,13 @@ class DashboardInsightService
         // Aggregation happens in the DB engine (GROUP BY) instead of hydrating rows.
         $deadStocks = Device::where('status', 'ISSUED')
             ->where('updated_at', '<', Carbon::now()->subDays(7))
-            ->when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->selectRaw('current_holder, count(*) as total')
             ->groupBy('current_holder')
             ->get();
@@ -58,15 +64,61 @@ class DashboardInsightService
             ];
         }
 
+        // 2b. DEVICE WARRANTY / RENTAL EXPIRATION ALERTS
+        $expiringDevices = Device::whereNotNull('ownership_status')
+            ->whereNotNull('warranty_end_date')
+            ->where('warranty_end_date', '<=', Carbon::now()->addDays(7))
+            ->get();
+
+        foreach ($expiringDevices as $device) {
+            $endDate = Carbon::parse($device->warranty_end_date);
+            $daysLeft = Carbon::now()->startOfDay()->diffInDays($endDate, false);
+            
+            // Get customer name from holder if possible
+            $holder = $device->current_holder;
+            $customerName = 'Customer';
+            if ($holder && stripos($holder, 'Customer:') !== false) {
+                $customerName = trim(str_replace('Customer:', '', $holder));
+            }
+
+            if ($daysLeft < 0) {
+                // Expired
+                $insights['critical'][] = [
+                    'icon' => 'fa-shield-halved',
+                    'message' => "Masa sewa/garansi perangkat <strong>{$device->serial_number}</strong> di <strong>{$customerName}</strong> telah <strong>HABIS</strong> sejak " . $endDate->format('d M Y') . ".",
+                    'time' => 'Expired'
+                ];
+            } else {
+                // Expiring soon
+                $insights['warning'][] = [
+                    'icon' => 'fa-shield-halved',
+                    'message' => "Masa sewa/garansi perangkat <strong>{$device->serial_number}</strong> di <strong>{$customerName}</strong> akan segera <strong>HABIS</strong> dalam {$daysLeft} hari (" . $endDate->format('d M Y') . ").",
+                    'time' => 'Expiring Soon'
+                ];
+            }
+        }
+
         // 3. DEPLETION RATE / BURN RATE TREND (Predictive)
         // Check how many devices were issued in the last 7 days.
         $last7DaysIssue = Device::where('status', '!=', 'IN_STOCK')
             ->where('updated_at', '>=', Carbon::now()->subDays(7))
-            ->when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->count();
 
         $totalInStock = Device::where('status', 'IN_STOCK')
-            ->when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->count();
 
         if ($last7DaysIssue > 0 && $totalInStock > 0) {
@@ -98,10 +150,16 @@ class DashboardInsightService
      * @param  string|null  $warehouseCode
      * @return array<int, array{level:string,icon:string,type:string,label:string,warehouse:string,current:int,min:int,message:string}>
      */
-    public function getStockAlerts(?string $warehouseCode = null): array
+    public function getStockAlerts($warehouseCode = null): array
     {
         $thresholds = StockAlertThreshold::with('warehouse')
-            ->when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->get();
 
         if ($thresholds->isEmpty()) {
@@ -201,27 +259,51 @@ class DashboardInsightService
      * @param  string|null  $warehouseCode  Limit metrics to a single warehouse (null = global).
      * @return array
      */
-    public function getGlobalMetrics(?string $warehouseCode = null)
+    public function getGlobalMetrics($warehouseCode = null)
     {
-        $counts = Device::when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+        $counts = Device::when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->selectRaw('status, count(*) as total')
             ->groupBy('status')
             ->pluck('total', 'status');
 
         $byWarehouse = Device::where('status', 'IN_STOCK')
-            ->when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->selectRaw('warehouse_code, count(*) as total')
             ->groupBy('warehouse_code')
             ->pluck('total', 'warehouse_code');
 
         // Aksesoris di gudang (scoped per warehouse bila ada).
-        $totalAccessories = (int) WarehouseAccessory::when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+        $totalAccessories = (int) WarehouseAccessory::when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->sum('qty');
 
         // Kartu GSM/SIM siap di gudang (IN_STOCK & punya gudang).
         $totalSimInStock = (int) GsmSimcard::where('status', 'IN_STOCK')
             ->whereNotNull('warehouse_code')
-            ->when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->count();
 
         // SIM terpasang (global; tak terikat gudang).
@@ -234,27 +316,74 @@ class DashboardInsightService
                 $q->where('current_holder', 'not like', 'Customer:%')
                   ->orWhereNull('current_holder');
             })
-            ->when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->count();
 
         $atCustomer = (int) Device::whereIn('status', ['ISSUED', 'INSTALLED'])
             ->where('current_holder', 'like', 'Customer:%')
-            ->when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->count();
 
         // Stok device di gudang dipecah berdasarkan kondisi unit (BARU vs BEKAS).
         $stockByCondition = Device::where('status', 'IN_STOCK')
-            ->when($warehouseCode, fn ($q) => $q->where('warehouse_code', $warehouseCode))
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
             ->selectRaw('unit_condition, count(*) as total')
             ->groupBy('unit_condition')
             ->pluck('total', 'unit_condition');
 
+        $qcDone = (int) Device::where('status', 'IN_STOCK')
+            ->where(function ($q) {
+                $q->where('warehouse_code', 'LIKE', 'WH-AREA-%')
+                  ->orWhere('warehouse_code', 'WH-PUSAT');
+            })
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
+            ->count();
+
+        $warehouseStock = (int) Device::where('status', 'IN_STOCK')
+            ->where('warehouse_code', 'LIKE', 'WH-AREA-%')
+            ->when($warehouseCode, function ($q) use ($warehouseCode) {
+                if (is_array($warehouseCode)) {
+                    $q->whereIn('warehouse_code', $warehouseCode);
+                } else {
+                    $q->where('warehouse_code', $warehouseCode);
+                }
+            })
+            ->count();
+
         return [
-            'total_in_stock' => (int) ($counts['IN_STOCK'] ?? 0),
+            'total_in_stock' => $warehouseStock,
             'total_pending_qc' => (int) ($counts['PENDING_QC'] ?? 0),
+            'total_qc_done' => $qcDone,
+            'total_in_transit' => (int) ($counts['IN_TRANSIT'] ?? 0),
             'total_issued' => $issuedTechnician,
             'total_at_customer' => $atCustomer,
             'total_installed' => (int) ($counts['INSTALLED'] ?? 0),
+            'total_rejected' => (int) ($counts['REJECTED'] ?? 0),
+            'total_flagged' => (int) ($counts['FLAGGED'] ?? 0),
             'total_devices' => (int) $counts->sum(),
             'total_stock_baru' => (int) ($stockByCondition['BARU'] ?? 0),
             'total_stock_bekas' => (int) ($stockByCondition['BEKAS'] ?? 0),
@@ -273,16 +402,22 @@ class DashboardInsightService
      * @param  int  $days  Number of days to include (inclusive of today).
      * @return array{labels: array, values: array}
      */
-    public function getBurnRateSeries(?string $warehouseCode = null, int $days = 30): array
+    public function getBurnRateSeries($warehouseCode = null)
     {
-        $start = Carbon::now()->subDays($days - 1)->startOfDay();
-
-        $rows = DeviceTransaction::whereIn('action', ['ISSUED', 'TRANSFER_OUT'])
-            ->where('created_at', '>=', $start)
-            ->when($warehouseCode, fn ($q) => $q->where('from_location', $warehouseCode))
-            ->selectRaw('DATE(created_at) as d, count(*) as total')
-            ->groupBy('d')
-            ->pluck('total', 'd');
+    $days = 30;
+    $start = Carbon::now()->subDays($days - 1); 
+    $trends = DeviceTransaction::where('action', 'ISSUE')
+        ->where('created_at', '>=', Carbon::now()->subDays($days))
+        ->when($warehouseCode, function ($q) use ($warehouseCode) {
+            if (is_array($warehouseCode)) {
+                $q->whereIn('from_location', $warehouseCode); // <-- UBAH KE SINI
+            } else {
+                $q->where('from_location', $warehouseCode);   // <-- UBAH KE SINI
+            }
+        })
+        ->selectRaw('DATE(created_at) as d, count(*) as total')
+        ->groupBy('d')
+        ->get();
 
         $labels = [];
         $values = [];
@@ -304,13 +439,20 @@ class DashboardInsightService
      * @param  string|null  $warehouseCode
      * @return array{labels: array, values: array}
      */
-    public function getDistribution(?string $warehouseCode = null): array
+public function getDistribution($warehouseCode = null)
     {
         if ($warehouseCode) {
-            $rows = Device::where('warehouse_code', $warehouseCode)
-                ->selectRaw('status, count(*) as total')
-                ->groupBy('status')
-                ->pluck('total', 'status');
+            if (is_array($warehouseCode)) {
+                $rows = Device::whereIn('warehouse_code', $warehouseCode)
+                    ->selectRaw('status, count(*) as total')
+                    ->groupBy('status')
+                    ->pluck('total', 'status');
+            } else {
+                $rows = Device::where('warehouse_code', $warehouseCode)
+                    ->selectRaw('status, count(*) as total')
+                    ->groupBy('status')
+                    ->pluck('total', 'status');
+            }
         } else {
             $rows = Device::where('status', 'IN_STOCK')
                 ->selectRaw('warehouse_code, count(*) as total')
@@ -330,7 +472,7 @@ class DashboardInsightService
      * @param  string|null  $warehouseCode
      * @return array
      */
-    public function getScopedData(?string $warehouseCode = null): array
+    public function getScopedData($warehouseCode = null): array
     {
         return [
             'metrics' => $this->getGlobalMetrics($warehouseCode),

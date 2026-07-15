@@ -1,167 +1,268 @@
-@php
-    $appLogo = \App\Models\AppSetting::getValue('app_logo');
-    $issued = \Illuminate\Support\Carbon::parse($issuedAt);
-@endphp
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tanda Terima {{ $receiptNo }}</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Arial, sans-serif; color: #1f2937; margin: 0; padding: 28px; background: #f3f4f6; font-size: 13px; }
-        .sheet { max-width: 800px; margin: 0 auto; background: #fff; padding: 40px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-        .doc-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #4f46e5; padding-bottom: 18px; margin-bottom: 8px; }
-        .company { display: flex; gap: 14px; align-items: center; }
-        .company .logo { width: 52px; height: 52px; border-radius: 12px; background: linear-gradient(135deg, #3b82f6, #4f46e5); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 24px; }
-        .company .logo img { width: 34px; height: 34px; object-fit: contain; }
-        .company h1 { font-size: 18px; margin: 0; }
-        .company p { font-size: 11px; color: #6b7280; margin: 2px 0 0; }
-        .doc-title { text-align: right; }
-        .doc-title h2 { font-size: 20px; margin: 0; color: #4f46e5; letter-spacing: 1px; }
-        .doc-title .no { font-size: 12px; color: #6b7280; margin-top: 4px; font-family: monospace; }
-        .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 24px 0; }
-        .meta-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 14px 16px; }
-        .meta-box h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin: 0 0 8px; }
-        .meta-box .row { display: flex; gap: 8px; margin-bottom: 4px; font-size: 13px; }
-        .meta-box .row .k { color: #6b7280; min-width: 90px; }
-        .meta-box .row .v { font-weight: 600; }
-        h3.section { font-size: 13px; margin: 22px 0 8px; color: #374151; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 8px; }
-        th, td { border: 1px solid #e5e7eb; padding: 7px 9px; text-align: left; font-size: 12px; }
-        th { background: #f9fafb; font-weight: 600; }
-        td.center, th.center { text-align: center; }
-        .muted { color: #9ca3af; font-style: italic; }
-        .note { font-size: 11px; color: #6b7280; margin-top: 16px; line-height: 1.6; }
-        .signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; margin-top: 48px; }
-        .sign-box { text-align: center; }
-        .sign-box .role { font-size: 12px; color: #6b7280; margin-bottom: 64px; }
-        .sign-box .line { border-top: 1px solid #374151; padding-top: 6px; font-weight: 600; font-size: 13px; }
-        .toolbar { max-width: 800px; margin: 0 auto 16px; display: flex; justify-content: space-between; align-items: center; }
-        .toolbar a { color: #4f46e5; text-decoration: none; font-size: 14px; }
-        .btn-print { background: #4f46e5; color: #fff; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; }
-        @media print {
-            body { background: #fff; padding: 0; }
-            .sheet { box-shadow: none; max-width: 100%; padding: 0; }
-            .toolbar { display: none; }
+        body { font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 13px; margin: 0; padding: 20px; background: #fff; color: #0f172a; line-height: 1.5; }
+        .sheet { max-width: 850px; margin: 0 auto; padding: 20px; }
+        
+        .header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px; }
+        .header-logo { flex: 1; }
+        .header-logo img { width: 250px; height: auto; display: block; } /* UBAH ANGKA 250px INI UNTUK MEMBESARKAN/MENGECILKAN LOGO */
+        
+        .header-info { text-align: right; font-size: 11px; color: #334155; line-height: 1.4; }
+        .header-info h2 { font-size: 16px; margin: 0 0 4px; font-weight: bold; color: #0f172a; }
+        
+        .divider { border-bottom: 2px solid #0f172a; margin-bottom: 25px; }
+        
+        .title { text-align: center; margin-bottom: 25px; }
+        .title h3 { margin: 0; font-size: 16px; font-weight: bold; text-decoration: underline; letter-spacing: 0.5px; }
+        
+        .doc-no { text-align: center; font-weight: 600; margin-top: -20px; margin-bottom: 30px; font-size: 13px; color: #475569; }
+
+        .meta-container { display: flex; gap: 20px; margin-bottom: 30px; }
+        .meta-card { flex: 1; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; }
+        .meta-title { font-size: 11px; font-weight: 600; color: #64748b; margin-bottom: 12px; letter-spacing: 0.5px; text-transform: uppercase; }
+        
+        .meta-table { width: 100%; border-collapse: collapse; }
+        .meta-table td { padding: 4px 0; vertical-align: top; }
+        .meta-table td.label { width: 110px; color: #64748b; font-weight: 400; }
+        .meta-table td.val { font-weight: 500; color: #0f172a; }
+        
+        h4.section-title { font-size: 13px; font-weight: bold; margin: 25px 0 10px; color: #0f172a; }
+        
+        .data-table { width: 100%; border-collapse: collapse; margin-bottom: 25px; font-size: 12px; }
+        .data-table th, .data-table td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; }
+        .data-table th { font-weight: 600; text-align: center; background-color: #f8fafc; color: #334155; }
+        .data-table td.center { text-align: center; }
+        
+        .note { margin-top: 15px; line-height: 1.6; text-align: justify; font-size: 12px; color: #475569; }
+        .signatures { width: 100%; margin-top: 60px; text-align: center; font-size: 13px; }
+        .signatures td { width: 50%; vertical-align: top; padding-bottom: 90px; color: #334155; }
+        .signatures .name { font-weight: bold; color: #0f172a; text-decoration: underline; }
+        
+        .footer { text-align: right; margin-top: 50px; font-size: 10px; color: #94a3b8; }
+        
+        @page {
+            margin: 0; /* Menghapus header/footer default browser */
+            size: auto;
         }
+        
+        @media print {
+            body { padding: 0; }
+            .sheet { padding: 0 15mm; }
+            .no-print { display: none; }
+            .meta-card { page-break-inside: avoid; }
+            .footer { position: fixed; bottom: 5mm; right: 15mm; margin-top: 0; }
+        }
+        .page-margin-table { width: 100%; border: none; border-collapse: collapse; }
+        .page-margin-table > thead > tr > td,
+        .page-margin-table > tbody > tr > td,
+        .page-margin-table > tfoot > tr > td { padding: 0; border: none; }
     </style>
 </head>
 <body>
-    <div class="toolbar">
-        <a href="{{ route('dashboard') }}"><i class="fa-solid fa-arrow-left"></i> Kembali ke Dashboard</a>
-        <button class="btn-print" onclick="window.print()"><i class="fa-solid fa-print"></i> Cetak / Simpan PDF</button>
+    <div class="no-print" style="margin-bottom: 20px; text-align: center;">
+        <button onclick="window.print()" style="padding: 10px 20px; cursor: pointer; background: #2563eb; color: #fff; border: none; border-radius: 4px; font-weight: 600;">Cetak Dokumen</button>
+        <a href="{{ route('dashboard') }}" style="margin-left: 10px; text-decoration: none; color: #2563eb; font-weight: 500;">Kembali ke Dashboard</a>
     </div>
-
-    <div class="sheet">
-        <div class="doc-header">
-            <div class="company">
-                <div class="logo">
-                    @if($appLogo)<img src="{{ asset($appLogo) }}" alt="Logo">@else<i class="fa-solid fa-boxes-stacked"></i>@endif
-                </div>
-                <div>
-                    <h1>WMS EASTPRO</h1>
-                    <p>PT EasyGo Indonesia</p>
-                </div>
+    
+    <table class="page-margin-table">
+        <thead>
+            <tr><td><div style="height: 15mm;"></div></td></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>
+                    <div class="sheet">
+                        <div class="header">
+            <div class="header-logo">
+                <img src="{{ asset('img/easygo-new-logo.png') }}" alt="EasyGo Logo" onerror="this.style.display='none'">
             </div>
-            <div class="doc-title">
-                <h2>TANDA TERIMA</h2>
-                <div class="no">{{ $receiptNo }}</div>
+            <div class="header-info">
+                <h2>PT. EASYGO INDONESIA</h2>
+                Alamat : Jl. Parang Tritis Raya Komplek Indo Ruko Lodan No 1 AB<br>
+                Rt 4 Rw 2 Ancol Kelurahan Pademangan, Jakarta Utara Kodepos : 14430<br>
+                Phone : 021 698 30038 Fax : 021 451 4534 Email : cseasygo@easygo.co.id
+            </div>
+        </div>
+        <div class="divider"></div>
+        
+        <div class="title">
+            <h3>TANDA TERIMA</h3>
+        </div>
+        <div class="doc-no">
+            No. Dokumen: {{ $receiptNo }}
+        </div>
+        
+        <div class="meta-container">
+            <div class="meta-card">
+                <div class="meta-title">Diserahkan Kepada ({{ strtoupper($recipientType) }})</div>
+                <table class="meta-table">
+                    <tr>
+                        <td class="label">Nama</td>
+                        <td class="val">{{ $recipientName }}</td>
+                    </tr>
+                    @foreach($recipientMeta as $k => $v)
+                    <tr>
+                        <td class="label">{{ $k }}</td>
+                        <td class="val">{{ $v }}</td>
+                    </tr>
+                    @endforeach
+                </table>
+            </div>
+            <div class="meta-card">
+                <div class="meta-title">Informasi Penyerahan</div>
+                <table class="meta-table">
+                    <tr>
+                        <td class="label">Tanggal</td>
+                        <td class="val">{{ $issued->translatedFormat('d F Y') }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Jam</td>
+                        <td class="val">{{ $issued->format('H:i') }} WIB</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Gudang Asal</td>
+                        <td class="val">{{ $warehouseName }}</td>
+                    </tr>
+                    <tr>
+                        <td class="label">Petugas</td>
+                        <td class="val">{{ $operator }}</td>
+                    </tr>
+                </table>
             </div>
         </div>
 
-        <div class="meta-grid">
-            <div class="meta-box">
-                <h3>Diserahkan Kepada ({{ $recipientType }})</h3>
-                <div class="row"><span class="k">Nama</span><span class="v">{{ $recipientName }}</span></div>
-                @foreach($recipientMeta as $k => $v)
-                    <div class="row"><span class="k">{{ $k }}</span><span class="v">{{ $v }}</span></div>
-                @endforeach
-            </div>
-            <div class="meta-box">
-                <h3>Informasi Penyerahan</h3>
-                <div class="row"><span class="k">Tanggal</span><span class="v">{{ $issued->translatedFormat('d F Y') }}</span></div>
-                <div class="row"><span class="k">Jam</span><span class="v">{{ $issued->format('H:i') }} WIB</span></div>
-                <div class="row"><span class="k">Gudang Asal</span><span class="v">{{ $warehouseName }}</span></div>
-                <div class="row"><span class="k">Petugas</span><span class="v">{{ $operator }}</span></div>
-            </div>
-        </div>
+        @php $sectionAlpha = 'A'; @endphp
 
         @if(!empty($deviceItems))
-            <h3 class="section">A. Daftar Perangkat ({{ count($deviceItems) }} unit)</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th class="center" style="width: 36px;">No</th>
-                        <th>Serial Number</th>
-                        <th>Tipe</th>
-                        <th>Model</th>
-                        <th>IMEI</th>
-                        <th>No. Kendaraan</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($deviceItems as $i => $d)
-                        <tr>
-                            <td class="center">{{ $i + 1 }}</td>
-                            <td style="font-family: monospace;">{{ $d['serial_number'] }}</td>
-                            <td>{{ $d['type'] }}</td>
-                            <td>{{ $d['model'] }}</td>
-                            <td style="font-family: monospace;">{{ $d['imei'] }}</td>
-                            <td>{{ $d['vehicle_plate'] }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+        @php
+            $totalDevice = array_sum(array_column($deviceItems, 'qty'));
+        @endphp
+        <h4 class="section-title">{{ $sectionAlpha++ }}. Daftar Perangkat ({{ $totalDevice }} unit)</h4>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">No</th>
+                    <th>Serial Number</th>
+                    <th style="width: 120px;">Tipe</th>
+                    <th style="width: 120px;">Model</th>
+                    <th style="width: 60px;">Qty</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($deviceItems as $i => $d)
+                <tr>
+                    <td class="center">{{ $i + 1 }}</td>
+                    <td style="line-height: 1.8;">{!! $d['serial_number'] !!}</td>
+                    <td class="center">{{ $d['type'] }}</td>
+                    <td class="center">{{ $d['model'] }}</td>
+                    <td class="center" style="font-weight: 600;">{{ $d['qty'] }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
+        @endif
+
+        @if(!empty($simItems))
+        @php
+            $totalSim = array_sum(array_column($simItems, 'qty'));
+        @endphp
+        <h4 class="section-title">{{ $sectionAlpha++ }}. Daftar Kartu GSM ({{ $totalSim }} unit)</h4>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">No</th>
+                    <th>MSISDN</th>
+                    <th style="width: 120px;">Provider</th>
+                    <th style="width: 120px;">Kategori</th>
+                    <th style="width: 60px;">Qty</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($simItems as $i => $s)
+                <tr>
+                    <td class="center">{{ $i + 1 }}</td>
+                    <td style="line-height: 1.8;">{!! $s['msisdn'] !!}</td>
+                    <td class="center">{{ $s['provider'] }}</td>
+                    <td class="center">{{ $s['category'] }}</td>
+                    <td class="center" style="font-weight: 600;">{{ $s['qty'] }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
         @endif
 
         @if(!empty($accItems))
-            <h3 class="section">B. Daftar Aksesoris</h3>
-            <table>
-                <thead>
-                    <tr>
-                        <th class="center" style="width: 36px;">No</th>
-                        <th>Kode</th>
-                        <th>Nama Aksesoris</th>
-                        <th class="center">Qty</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach($accItems as $i => $a)
-                        <tr>
-                            <td class="center">{{ $i + 1 }}</td>
-                            <td style="font-family: monospace;">{{ $a['code'] }}</td>
-                            <td>{{ $a['name'] }}</td>
-                            <td class="center">{{ $a['qty'] }}</td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+        @php
+            $totalAcc = array_sum(array_column($accItems, 'qty'));
+        @endphp
+        <h4 class="section-title">{{ $sectionAlpha++ }}. Daftar Aksesoris ({{ $totalAcc }} unit)</h4>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th style="width: 40px;">No</th>
+                    <th>Kode</th>
+                    <th>Nama Aksesoris</th>
+                    <th style="width: 60px;">Qty</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach($accItems as $i => $a)
+                <tr>
+                    <td class="center">{{ $i + 1 }}</td>
+                    <td class="center">{{ $a['code'] }}</td>
+                    <td>{{ $a['name'] }}</td>
+                    <td class="center" style="font-weight: 600;">{{ $a['qty'] }}</td>
+                </tr>
+                @endforeach
+            </tbody>
+        </table>
         @endif
 
-        <div class="note">
-            <strong>Catatan:</strong> Dengan menandatangani dokumen ini, penerima menyatakan telah menerima seluruh barang
-            di atas dalam kondisi baik dan lengkap, serta bertanggung jawab penuh atas penggunaan dan pengembaliannya
-            sesuai ketentuan yang berlaku.
+        <div style="page-break-inside: avoid; margin-bottom: 30px;">
+            <div class="note">
+                <b>Catatan:</b> Dengan menandatangani dokumen ini, penerima menyatakan telah menerima seluruh barang di atas 
+                dalam kondisi baik dan lengkap, serta bertanggung jawab penuh atas penggunaan dan pengembaliannya 
+                sesuai ketentuan yang berlaku.
+            </div>
+
+            <table class="signatures">
+                <tr>
+                    <td>Yang Menyerahkan,</td>
+                    <td>Yang Menerima,</td>
+                </tr>
+                <tr>
+                    <td class="name">{{ $operator }}</td>
+                    <td class="name">{{ $recipientName }}</td>
+                </tr>
+            </table>
         </div>
 
-        <div class="signatures">
-            <div class="sign-box">
-                <div class="role">Yang Menyerahkan,</div>
-                <div class="line">{{ $operator }}</div>
-            </div>
-            <div class="sign-box">
-                <div class="role">Yang Menerima,</div>
-                <div class="line">{{ $recipientName }}</div>
-            </div>
-        </div>
+                    </div>
+                </td>
+            </tr>
+        </tbody>
+        <tfoot>
+            <tr><td><div style="height: 15mm;"></div></td></tr>
+        </tfoot>
+    </table>
+
+    <div class="footer">
+        Powered by WMS EastPRO
     </div>
-
-    @if($autoprint)
+    
+    @if(isset($autoprint) && $autoprint)
     <script>
-        window.addEventListener('load', () => setTimeout(() => window.print(), 500));
+        window.onload = function() {
+            setTimeout(function() {
+                window.print();
+            }, 500);
+        };
     </script>
     @endif
 </body>

@@ -20,7 +20,13 @@ class EnsureRole
         }
 
         if (!$user->hasRole(...$roles)) {
-            abort(403, 'Anda tidak memiliki hak akses untuk halaman ini.');
+            if ($request->expectsJson()) {
+                abort(403, 'Anda tidak memiliki hak akses untuk halaman ini.');
+            }
+
+            return redirect()
+                ->route('dashboard')
+                ->withErrors(['msg' => 'Anda tidak memiliki hak akses untuk halaman ini. Menu Manajemen Pengguna hanya tersedia untuk Super Admin.']);
         }
 
         return $next($request);

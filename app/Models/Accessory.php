@@ -10,5 +10,5 @@ class Accessory extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    protected $fillable = ['code', 'name', 'qty'];
+    protected $fillable = ['code', 'name', 'qty', 'unit'];
 }

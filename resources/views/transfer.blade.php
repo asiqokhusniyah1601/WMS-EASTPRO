@@ -88,10 +88,13 @@
     <!-- Tabs Navigation -->
     <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-color); margin-bottom: 24px;">
         <button class="btn btn-outline active-tab-btn" id="tabCreateBtn" style="border-bottom: 2px solid var(--accent-blue); border-radius: 0; padding-bottom: 12px; background: none; border-top: none; border-left: none; border-right: none; color: var(--text-primary);">
-            <i class="fa-solid fa-paper-plane" style="color: var(--accent-blue);"></i> 1. Kirim Barang (Create Transfer)
+            <i class="fa-solid fa-paper-plane" style="color: var(--accent-blue);"></i>Kirim Barang (Create Transfer)
         </button>
         <button class="btn btn-outline" id="tabReceiveBtn" style="border-bottom: 2px solid transparent; border-radius: 0; padding-bottom: 12px; background: none; border-top: none; border-left: none; border-right: none;">
-            <i class="fa-solid fa-truck-ramp-box" style="color: var(--accent-emerald);"></i> 2. Terima Barang Masuk (Incoming Transfer)
+            <i class="fa-solid fa-truck-ramp-box" style="color: var(--accent-emerald);"></i>Terima Barang Masuk (Incoming Transfer)
+        </button>
+        <button class="btn btn-outline" id="tabRackBtn" style="border-bottom: 2px solid transparent; border-radius: 0; padding-bottom: 12px; background: none; border-top: none; border-left: none; border-right: none;">
+            <i class="fa-solid fa-bars-staggered" style="color: var(--accent-indigo);"></i>Transfer Antar Rak
         </button>
     </div>
 
@@ -100,6 +103,13 @@
         <div class="alert-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
         <div class="alert-message">
             <strong>PERINGATAN!</strong> <span id="transferAlertText"></span>
+        </div>
+    </div>
+
+    <div id="transferNotice" class="alert-box animate-fade-in" style="display: none; background-color: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.25); color: var(--accent-blue);">
+        <div class="alert-icon"><i class="fa-solid fa-circle-info"></i></div>
+        <div class="alert-message">
+            <span id="transferNoticeText"></span>
         </div>
     </div>
 
@@ -114,9 +124,9 @@
                         <div class="card-header">
                             <div class="card-title">
                                 <i class="fa-solid fa-barcode"></i>
-                                <span>Tahap 1 — Scan Barang yang Akan Dikirim</span>
+                                <span>Transfer Barang-Barang yang Akan Dikirim</span>
                             </div>
-                            <span class="badge badge-info">Langkah utama</span>
+                            
                         </div>
 
                         <div class="form-group" style="margin-bottom: 0;">
@@ -129,8 +139,39 @@
                         </div>
                     </div>
 
+                    <!-- Stok tersedia di gudang asal (klik untuk menambah tanpa scan) -->
+                    <div class="card" style="margin-top: 24px;">
+                        <div class="card-header">
+                            <div class="card-title">
+                                <i class="fa-solid fa-warehouse"></i>
+                                <span>Stok Tersedia di Gudang Asal (<span id="availCount">0</span>)</span>
+                            </div>
+                            <div style="position: relative;">
+                                <i class="fa-solid fa-magnifying-glass" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--text-muted); font-size:12px;"></i>
+                                <input type="text" id="availSearch" class="form-control" placeholder="Cari SN / tipe (semua gudang)..." style="width: 260px; height: 36px; padding-left: 32px; font-size: 13px;" autocomplete="off">
+                            </div>
+                        </div>
+                        <div style="padding: 0 4px 10px; font-size: 12px; color: var(--text-muted);">
+                            <i class="fa-solid fa-circle-info"></i> Tanpa pencarian: hanya menampilkan gudang asal terpilih. Saat mencari SN/tipe: mencari di <strong>semua gudang</strong>.
+                        </div>
+                        <div class="table-wrapper" style="max-height: 260px; overflow-y: auto;">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Serial Number (SN)</th>
+                                        <th>Tipe</th>
+                                        <th>Kondisi</th>
+                                        <th>Lokasi</th>
+                                        <th style="text-align: right; width: 140px;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="availStockBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+
                     <!-- Draft Table -->
-                    <div class="card">
+                    <div class="card" style="margin-top: 24px;">
                         <div class="card-header">
                             <div class="card-title">
                                 <i class="fa-solid fa-list-check"></i>
@@ -183,7 +224,7 @@
                         <!-- Quick Suggestions (AI-Driven) -->
                         @if(!empty($suggestedAccessories))
                             <div class="ai-suggestion-container">
-                                <span class="ai-suggestion-title"><i class="fa-solid fa-wand-magic-sparkles"></i> AI Suggestion:</span>
+                                <span class="ai-suggestion-title"><i class="fa-solid fa-wand-magic-sparkles"></i> Suggestion:</span>
                                 @foreach($suggestedAccessories as $acc)
                                     <button type="button" class="ai-pill-btn quick-acc-btn" data-code="{{ $acc['code'] }}" data-name="{{ $acc['name'] }}">
                                         <i class="fa-solid fa-plus"></i> {{ $acc['name'] }}
@@ -292,14 +333,14 @@
                                 <div class="ss-box"><div class="ss-num" id="sumSim">0</div><div class="ss-lbl">Kartu GSM</div></div>
                             </div>
 
-                            <div class="form-group">
-                                <label for="from_warehouse">Gudang Pengirim (Asal)</label>
-                                <select name="from_warehouse" id="from_warehouse" class="form-control">
-                                    @foreach($warehouses as $key => $name)
-                                        <option value="{{ $key }}" {{ $key == session('active_warehouse_code') ? 'selected' : '' }}>{{ $name }}</option>
-                                    @endforeach
-                                </select>
-                            </div>
+                            <x-warehouse-select
+                                name="from_warehouse"
+                                id="from_warehouse"
+                                label="Gudang Pengirim (Asal)"
+                                :warehouses="$warehouses"
+                                :show-empty-option="false"
+                                :readonly="true"
+                            />
 
                             <div class="form-group">
                                 <label for="to_warehouse">Gudang Tujuan</label>
@@ -381,8 +422,11 @@
                                 <thead>
                                     <tr>
                                         <th>Serial Number (SN)</th>
+                                        <th>Jenis Device</th>
+                                        <th>Nama Device</th>
+                                        <th style="text-align: center;">Jumlah</th>
+                                        <th>Gudang Asal</th>
                                         <th>Status Verifikasi</th>
-                                        <th>Waktu Cocok</th>
                                     </tr>
                                 </thead>
                                 <tbody id="verifyTableBody">
@@ -459,6 +503,98 @@
             </div>
         </form>
     </div>
+
+    <!-- TAB 3: RACK TRANSFER -->
+    <div id="panelRackTransfer" style="display: none;">
+        <form action="{{ route('transfer.rack.post') }}" method="POST" id="rackTransferForm">
+            @csrf
+            <div class="card mb-4" style="margin-bottom: 24px;">
+                <div class="card-header">
+                    <div class="card-title">
+                        <i class="fa-solid fa-warehouse"></i>
+                        <span>Pilih Gudang (Sumber Rak)</span>
+                    </div>
+                </div>
+                <div class="form-group mb-0">
+                    @php
+                        $isSuperAdmin = request()->user()->hasRole('super_admin');
+                        $activeWarehouse = session('active_warehouse_code') ?: request()->user()->warehouse_code;
+                    @endphp
+                    <select id="rt_warehouse" name="warehouse" class="form-control" {{ !$isSuperAdmin ? 'disabled' : '' }}>
+                        <option value="">-- Pilih Gudang --</option>
+                        @foreach($warehouses as $key => $name)
+                            <option value="{{ $key }}" {{ $activeWarehouse === $key ? 'selected' : '' }}>{{ $name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr auto 1fr; gap: 24px; align-items: start;">
+                <!-- RAK ASAL -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-bars-staggered" style="color: var(--accent-blue);"></i>
+                            <span>Rak Asal</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <select id="rt_source_rack" name="source_rack" class="form-control" required disabled>
+                            <option value="">-- Pilih Rak Asal --</option>
+                        </select>
+                    </div>
+                    <div class="table-wrapper" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"><input type="checkbox" id="rt_check_all"></th>
+                                    <th>SN / Model</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rt_source_body">
+                                <tr><td colspan="2" style="text-align: center; color: var(--text-muted); padding: 40px;">Pilih rak asal terlebih dahulu</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- TOMBOL SIMPAN -->
+                <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; align-self: stretch; padding-top: 100px;">
+                    <button type="submit" id="btnTransferRack" class="btn btn-primary" style="padding: 12px 24px; font-weight: bold; border-radius: 8px;" disabled>
+                        Simpan <i class="fa-solid fa-arrow-right" style="margin-left: 8px;"></i>
+                    </button>
+                    <small id="rt_selected_count" style="margin-top: 8px; color: var(--text-muted); font-weight: bold;">0 dipilih</small>
+                </div>
+
+                <!-- RAK TUJUAN -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">
+                            <i class="fa-solid fa-bars-staggered" style="color: var(--accent-emerald);"></i>
+                            <span>Rak Tujuan</span>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <select id="rt_dest_rack" name="destination_rack" class="form-control" required disabled>
+                            <option value="">-- Pilih Rak Tujuan --</option>
+                        </select>
+                    </div>
+                    <div class="table-wrapper" style="min-height: 250px; max-height: 400px; overflow-y: auto;">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>SN / Model</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rt_dest_body">
+                                <tr><td style="text-align: center; color: var(--text-muted); padding: 40px;">Pilih rak tujuan terlebih dahulu</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
 </div>
 @endsection
 
@@ -466,6 +602,10 @@
 <script>
     // Database stock check (only active devices in stock can be transferred)
     const inStockDevices = @json($devices);
+    // Lookup SEMUA device (SN → {status, warehouse_code, type, unit_condition}) utk diagnosa scan.
+    const deviceLookup = @json($deviceLookup ?? (object) []);
+    // Peta kode gudang → nama, utk pesan yang ramah dibaca.
+    const warehouseNames = @json($warehouses ?? (object) []);
     const deliveryOrders = @json($delivery_orders);
     const accessoriesListData = @json(array_values($accessories));
     const warehouseAccessories = @json($warehouseAccessories);
@@ -473,8 +613,10 @@
     // UI Tab toggle
     const tabCreateBtn = document.getElementById('tabCreateBtn');
     const tabReceiveBtn = document.getElementById('tabReceiveBtn');
+    const tabRackBtn = document.getElementById('tabRackBtn');
     const panelCreateTransfer = document.getElementById('panelCreateTransfer');
     const panelReceiveTransfer = document.getElementById('panelReceiveTransfer');
+    const panelRackTransfer = document.getElementById('panelRackTransfer');
     
     // Scanner input fields
     const createScanInput = document.getElementById('create_scan_input');
@@ -491,8 +633,11 @@
         tabCreateBtn.style.color = 'var(--text-primary)';
         tabReceiveBtn.style.borderBottomColor = 'transparent';
         tabReceiveBtn.style.color = 'var(--text-secondary)';
+        tabRackBtn.style.borderBottomColor = 'transparent';
+        tabRackBtn.style.color = 'var(--text-secondary)';
         panelCreateTransfer.style.display = 'block';
         panelReceiveTransfer.style.display = 'none';
+        panelRackTransfer.style.display = 'none';
         if (emulatorTarget) {
             emulatorTarget.value = '.scan-target-input'; // default selector on create
         }
@@ -505,12 +650,28 @@
         tabReceiveBtn.style.color = 'var(--text-primary)';
         tabCreateBtn.style.borderBottomColor = 'transparent';
         tabCreateBtn.style.color = 'var(--text-secondary)';
+        tabRackBtn.style.borderBottomColor = 'transparent';
+        tabRackBtn.style.color = 'var(--text-secondary)';
         panelCreateTransfer.style.display = 'none';
         panelReceiveTransfer.style.display = 'block';
+        panelRackTransfer.style.display = 'none';
         if (emulatorTarget) {
             emulatorTarget.value = '#verify_scan_input';
         }
         verifyScanInput.focus();
+    });
+
+    tabRackBtn.addEventListener('click', () => {
+        activeTab = 'rack';
+        tabRackBtn.style.borderBottomColor = 'var(--accent-indigo)';
+        tabRackBtn.style.color = 'var(--text-primary)';
+        tabCreateBtn.style.borderBottomColor = 'transparent';
+        tabCreateBtn.style.color = 'var(--text-secondary)';
+        tabReceiveBtn.style.borderBottomColor = 'transparent';
+        tabReceiveBtn.style.color = 'var(--text-secondary)';
+        panelCreateTransfer.style.display = 'none';
+        panelReceiveTransfer.style.display = 'none';
+        panelRackTransfer.style.display = 'block';
     });
 
     // Custom autofocus listener
@@ -538,6 +699,14 @@
     const btnReleaseShipment = document.getElementById('btnReleaseShipment');
     const transferAlert = document.getElementById('transferAlert');
     const transferAlertText = document.getElementById('transferAlertText');
+
+    // Elemen DOM aksesoris — HARUS dideklarasikan sebelum filterToWarehouseOptions()
+    // dipanggil saat load, karena checkCreateFormValidity() (dipicu via filterSimByWarehouse
+    // → updateSimBadge) mengakses accDraftTableBody. Jika di-declare belakangan → TDZ error.
+    const accSearchInput = document.getElementById('acc_search_input');
+    const accAutocompleteList = document.getElementById('acc_autocomplete_list');
+    const accDraftTableBody = document.getElementById('accDraftTableBody');
+    const emptyAccRowPlaceholder = document.getElementById('emptyAccRowPlaceholder');
 
     // Validate from and to warehouses are not the same
     const fromWarehouseSelect = document.getElementById('from_warehouse');
@@ -688,19 +857,43 @@
             return;
         }
 
-        // Check if device is IN_STOCK in database
-        const matchDev = inStockDevices.find(d => d.serial_number === sn);
-        if (!matchDev) {
-            triggerAlert("Device SN " + sn + " TIDAK DITEMUKAN atau tidak berada di status IN_STOCK.");
+        const fromWh = fromWarehouseSelect.value;
+        const fromWhName = fromWarehouseSelect.options ? (fromWarehouseSelect.options[fromWarehouseSelect.selectedIndex]?.text || fromWh) : (warehouseNames[fromWh] || fromWh);
+
+        // Cari di seluruh device untuk bisa memberi alasan SPESIFIK bila tak bisa dimutasi.
+        const dev = deviceLookup[sn];
+
+        if (!dev) {
+            triggerAlert("Device SN " + sn + " TIDAK DITEMUKAN di sistem. Pastikan barang sudah diterima (Receiving) & lolos QC.");
+            return;
+        }
+
+        // Hanya unit IN_STOCK yang bisa dimutasi.
+        if (dev.status !== 'IN_STOCK') {
+            let extra = '';
+            if (dev.status === 'PENDING_QC') extra = ' Unit masih menunggu QC — selesaikan di menu Quality Control dulu.';
+            else if (dev.status === 'IN_TRANSIT') extra = ' Unit sedang dalam perjalanan transfer lain.';
+            else if (dev.status === 'ISSUED' || dev.status === 'INSTALLED') extra = ' Unit sedang dipegang teknisi/customer.';
+            triggerAlert("Device SN " + sn + " tidak bisa dimutasi (status saat ini: " + dev.status + ")." + extra);
             return;
         }
 
         // Integritas: device harus berada di gudang asal (pengirim) yang dipilih.
-        const fromWh = fromWarehouseSelect.value;
-        if (matchDev.warehouse_code !== fromWh) {
-            triggerAlert("Device SN " + sn + " bukan stok gudang asal terpilih. Pilih gudang pengirim yang sesuai.");
-            return;
+        if (dev.warehouse_code !== fromWh) {
+            const locName = (warehouseNames[dev.warehouse_code] || dev.warehouse_code || 'gudang lain');
+            // Draft masih kosong → pindahkan otomatis gudang asal ke lokasi device
+            // sehingga scan langsung berhasil tanpa operator harus memilih gudang manual.
+            if (createDraftSns.size === 0 && dev.warehouse_code) {
+                setOriginWarehouse(dev.warehouse_code);
+                triggerNotice('Gudang asal otomatis diset ke ' + locName + ' (lokasi device ' + sn + ').');
+                // lanjut tambahkan device di bawah
+            } else {
+                triggerAlert("Device SN " + sn + " berada di " + locName + ", bukan gudang asal terpilih (" + fromWhName + "). Kosongkan daftar saat ini atau ubah \"Gudang Pengirim\" ke " + locName + " untuk memutasikannya.");
+                return;
+            }
         }
+
+        const matchDev = dev;
 
         // Add
         createDraftSns.add(sn);
@@ -735,7 +928,130 @@
 
         createCountSpan.innerText = createDraftSns.size;
         checkCreateFormValidity();
+        renderAvailableStock();
     }
+
+    // ==========================================
+    // STOK TERSEDIA DI GUDANG ASAL (klik tambah tanpa scan)
+    // ==========================================
+    const availStockBody = document.getElementById('availStockBody');
+    const availCountSpan = document.getElementById('availCount');
+    const availSearch = document.getElementById('availSearch');
+
+    // Hitung jumlah device IN_STOCK per gudang (abaikan yang sudah masuk draft).
+    function stockCountByWarehouse() {
+        const map = {};
+        inStockDevices.forEach(d => {
+            if (createDraftSns.has(d.serial_number)) return;
+            const wh = d.warehouse_code || '';
+            map[wh] = (map[wh] || 0) + 1;
+        });
+        return map;
+    }
+
+    // Pindahkan gudang asal secara terprogram (TIDAK memicu listener 'change' yang
+    // membersihkan draft) lalu sinkronkan tujuan/aksesoris/SIM/stok.
+    function setOriginWarehouse(code) {
+        if (!code || fromWarehouseSelect.value === code) return;
+        if (!fromWarehouseSelect.options) return; // Prevent changing if locked (hidden input)
+        fromWarehouseSelect.value = code;
+        filterToWarehouseOptions();
+        renderAvailableStock();
+    }
+
+    function renderAvailableStock() {
+        if (!availStockBody) return;
+        const fromWh = fromWarehouseSelect.value;
+        const q = (availSearch?.value || '').trim().toLowerCase();
+        const searching = q.length > 0;
+
+        // Saat MENCARI → telusuri SEMUA gudang (global) agar SN/tipe pasti ketemu di
+        // gudang manapun. Tanpa pencarian → hanya stok di gudang asal terpilih.
+        const rows = inStockDevices.filter(d => {
+            if (createDraftSns.has(d.serial_number)) return false;
+            if (searching) {
+                return (d.serial_number || '').toLowerCase().includes(q)
+                    || (d.type || '').toLowerCase().includes(q);
+            }
+            return d.warehouse_code === fromWh;
+        });
+
+        // #region agent log
+        // H1/H3/H5: apa yang sebenarnya difilter saat render (termasuk saat user mengetik).
+        // fetch('http://127.0.0.1:8080/ingest/11284be5-3d92-4d1e-9bdd-50a403b93ba4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e0c926' }, body: JSON.stringify({ sessionId: 'e0c926', runId: 'run1', hypothesisId: 'H1', location: 'transfer.blade.php:renderAvailableStock', message: 'render result', data: { fromWh: fromWh, q: q, searching: searching, totalInStock: (inStockDevices || []).length, matched: rows.length, draftSize: createDraftSns.size }, timestamp: Date.now() }) }).catch(() => {});
+        // // #endregion
+
+        if (availCountSpan) availCountSpan.innerText = rows.length;
+
+        if (!rows.length) {
+            // Tidak ada hasil → bantu operator: tunjukkan gudang lain yang punya stok.
+            const counts = stockCountByWarehouse();
+            const others = Object.keys(counts)
+                .filter(wh => wh && wh !== fromWh && counts[wh] > 0)
+                .sort((a, b) => counts[b] - counts[a]);
+
+            let hint = '';
+            if (others.length && !searching) {
+                hint = '<div style="margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center;">'
+                    + '<span style="font-size:12px; color:var(--text-muted); width:100%;">Stok tersedia di gudang lain — klik untuk pindah gudang asal:</span>'
+                    + others.map(wh => '<button type="button" class="btn btn-outline btn-icon-sm avail-switch-btn" data-wh="' + wh + '" style="padding:5px 12px; font-size:12px;">'
+                        + '<i class="fa-solid fa-warehouse"></i> ' + (warehouseNames[wh] || wh) + ' <span class="badge badge-info" style="margin-left:4px;">' + counts[wh] + '</span></button>').join('')
+                    + '</div>';
+            }
+
+            availStockBody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:22px;">'
+                + (searching
+                    ? 'SN/tipe "' + q + '" tidak ditemukan sebagai stok <strong>IN_STOCK</strong> di gudang manapun. Pastikan barang sudah lolos QC.'
+                    : 'Tidak ada stok IN_STOCK di gudang asal ini.')
+                + hint + '</td></tr>';
+            return;
+        }
+
+        availStockBody.innerHTML = rows.map(d => {
+            const cond = (d.unit_condition === 'BEKAS') ? 'BEKAS' : 'BARU';
+            const condCls = cond === 'BEKAS' ? 'badge-warning' : 'badge-success';
+            const isHere = d.warehouse_code === fromWh;
+            const locName = warehouseNames[d.warehouse_code] || d.warehouse_code || '-';
+            const locBadge = isHere
+                ? `<span class="badge badge-success">${locName}</span>`
+                : `<span class="badge badge-warning" title="Beda gudang dari asal terpilih">${locName}</span>`;
+            const btn = isHere
+                ? `<button type="button" class="btn btn-primary btn-icon-sm avail-add-btn" data-sn="${d.serial_number}" style="padding:4px 10px; font-size:11px;"><i class="fa-solid fa-plus"></i> Tambah</button>`
+                : `<button type="button" class="btn btn-outline btn-icon-sm avail-add-btn" data-sn="${d.serial_number}" style="padding:4px 10px; font-size:11px;" title="Pindahkan gudang asal ke ${locName} lalu tambahkan"><i class="fa-solid fa-arrow-right-arrow-left"></i> Pindah &amp; Tambah</button>`;
+            return `<tr>
+                <td style="font-weight:600; color:var(--accent-blue);">${d.serial_number}</td>
+                <td><span class="badge badge-info">${d.type}</span></td>
+                <td><span class="badge ${condCls}">${cond}</span></td>
+                <td>${locBadge}</td>
+                <td style="text-align:right;">${btn}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    if (availStockBody) {
+        availStockBody.addEventListener('click', function (e) {
+            const addBtn = e.target.closest('.avail-add-btn');
+            if (addBtn) { processCreateScan(addBtn.getAttribute('data-sn')); return; }
+
+            const switchBtn = e.target.closest('.avail-switch-btn');
+            if (switchBtn) {
+                const wh = switchBtn.getAttribute('data-wh');
+                setOriginWarehouse(wh);
+                triggerNotice('Gudang asal dipindah ke ' + (warehouseNames[wh] || wh) + '. Silakan pilih device untuk dimutasi.');
+            }
+        });
+    }
+    if (availSearch) availSearch.addEventListener('input', function () {
+        // #region agent log
+        // // H5: konfirmasi listener input search benar-benar terpicu + nilai elemen.
+        // fetch('http://127.0.0.1:8080/ingest/11284be5-3d92-4d1e-9bdd-50a403b93ba4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e0c926' }, body: JSON.stringify({ sessionId: 'e0c926', runId: 'run1', hypothesisId: 'H5', location: 'transfer.blade.php:availSearch.input', message: 'search input fired', data: { value: availSearch.value }, timestamp: Date.now() }) }).catch(() => {});
+        // // #endregion
+        renderAvailableStock();
+    });
+    // #region agent log
+    // H5: konfirmasi elemen availSearch ditemukan saat binding listener.
+    // fetch('http://127.0.0.1:8080/ingest/11284be5-3d92-4d1e-9bdd-50a403b93ba4', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': 'e0c926' }, body: JSON.stringify({ sessionId: 'e0c926', runId: 'run1', hypothesisId: 'H5', location: 'transfer.blade.php:bindSearch', message: 'availSearch binding', data: { found: !!availSearch }, timestamp: Date.now() }) }).catch(() => {});
+    // #endregion
 
     window.removeCreateRow = function(sn) {
         const row = document.getElementById(`create-row-${sn}`);
@@ -754,6 +1070,7 @@
                 r.cells[0].innerText = idx + 1;
             });
             checkCreateFormValidity();
+            renderAvailableStock();
         }
         createScanInput.focus();
     }
@@ -765,14 +1082,23 @@
         transferAlert.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
+    // Notifikasi informatif (bukan error) — mis. auto-switch gudang asal.
+    const transferNotice = document.getElementById('transferNotice');
+    const transferNoticeText = document.getElementById('transferNoticeText');
+    let transferNoticeTimer = null;
+    function triggerNotice(msg) {
+        if (!transferNotice) return;
+        transferAlert.style.display = 'none';
+        transferNoticeText.innerText = msg;
+        transferNotice.style.display = 'flex';
+        clearTimeout(transferNoticeTimer);
+        transferNoticeTimer = setTimeout(() => { transferNotice.style.display = 'none'; }, 4000);
+    }
+
     // ==========================================
     // ACCESSORY TRANSFER FORM LOGIC
+    // (elemen DOM aksesoris dideklarasikan lebih awal — lihat blok di atas)
     // ==========================================
-    const accSearchInput = document.getElementById('acc_search_input');
-    const accAutocompleteList = document.getElementById('acc_autocomplete_list');
-    const accDraftTableBody = document.getElementById('accDraftTableBody');
-    const emptyAccRowPlaceholder = document.getElementById('emptyAccRowPlaceholder');
-
     function checkCreateFormValidity() {
         let totalQty = 0;
         const inputs = accDraftTableBody.querySelectorAll('.acc-qty-input');
@@ -1077,12 +1403,20 @@
 
             // Fill verification table in pending state
             currentSjData.devices.forEach(sn => {
+                const dev = deviceLookup[sn] || {};
+                const type = dev.type || '-';
+                const name = dev.model || '-';
+                const origin = dev.warehouse_code ? (warehouseNames[dev.warehouse_code] || dev.warehouse_code) : '-';
+                
                 const row = document.createElement('tr');
                 row.id = `verify-row-${sn}`;
                 row.innerHTML = `
                     <td style="font-weight:600; color:var(--text-secondary);">${sn}</td>
-                    <td><span class="badge badge-warning" id="verify-badge-${sn}">PENDING SCAN</span></td>
-                    <td id="verify-time-${sn}">-- : --</td>
+                    <td><span class="badge badge-info">${type}</span></td>
+                    <td style="font-size: 13px;">${name}</td>
+                    <td style="text-align: center; font-weight: 600;">1 unit</td>
+                    <td style="font-size: 13px;">${origin}</td>
+                    <td><span class="badge badge-warning" id="verify-badge-${sn}">BELUM COCOK</span></td>
                 `;
                 verifyTableBody.appendChild(row);
             });
@@ -1101,9 +1435,13 @@
     verifyScanInput.addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
-            const sn = this.value.trim();
-            if (sn) {
-                processVerifyScan(sn);
+            const rawInput = this.value.trim();
+            if (rawInput !== '') {
+                // Split by space, comma, tab, or newline to support multiple SNs
+                const sns = rawInput.split(/[\s,]+/).map(s => s.trim()).filter(Boolean);
+                sns.forEach(sn => {
+                    processVerifyScan(sn);
+                });
             }
             this.value = '';
             verifyScanInput.focus();
@@ -1136,9 +1474,11 @@
         const row = document.getElementById(`verify-row-${sn}`);
         if (row) {
             row.cells[0].style.color = 'var(--accent-emerald)';
-            document.getElementById(`verify-badge-${sn}`).className = 'badge badge-success';
-            document.getElementById(`verify-badge-${sn}`).innerText = 'MATCHED / COCOK';
-            document.getElementById(`verify-time-${sn}`).innerText = new Date().toLocaleTimeString();
+            const badge = document.getElementById(`verify-badge-${sn}`);
+            if (badge) {
+                badge.className = 'badge badge-success';
+                badge.innerText = 'SUDAH COCOK';
+            }
         }
 
         verifiedCountSpan.innerText = verifiedSns.size;
@@ -1168,6 +1508,24 @@
     makeSectionToggle('toggleAccSection', 'accSectionBody', 'Tambah Aksesoris', 'Sembunyikan');
     makeSectionToggle('toggleSimSection', 'simSectionBody', 'Tambah SIM Card', 'Sembunyikan');
 
+    // Stok tersedia: render awal + perbarui saat gudang asal berubah.
+    fromWarehouseSelect.addEventListener('change', renderAvailableStock);
+
+    // Default cerdas: bila gudang asal terpilih TIDAK punya stok IN_STOCK tetapi
+    // gudang lain punya, otomatis pilih gudang dengan stok terbanyak agar panel
+    // tidak kosong saat halaman dibuka (mis. active warehouse belum diset).
+    (function smartDefaultOrigin() {
+        const counts = stockCountByWarehouse();
+        const current = fromWarehouseSelect.value;
+        if ((counts[current] || 0) > 0) return;
+        const best = Object.keys(counts)
+            .filter(wh => wh && counts[wh] > 0)
+            .sort((a, b) => counts[b] - counts[a])[0];
+        if (best) setOriginWarehouse(best);
+    })();
+
+    renderAvailableStock();
+
     // Keyboard shortcut: Ctrl/Cmd + Enter untuk Release Shipment (tanpa lepas scanner)
     document.addEventListener('keydown', (e) => {
         if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && activeTab === 'create') {
@@ -1177,6 +1535,151 @@
             } else if (typeof triggerAlert === 'function') {
                 triggerAlert('Belum ada barang untuk dikirim. Scan perangkat atau tambahkan aksesoris/SIM dahulu.');
             }
+        }
+    });
+    // ==========================================
+    // RACK TRANSFER LOGIC
+    // ==========================================
+    const rtWarehouse = document.getElementById('rt_warehouse');
+    const rtSourceRack = document.getElementById('rt_source_rack');
+    const rtDestRack = document.getElementById('rt_dest_rack');
+    const rtSourceBody = document.getElementById('rt_source_body');
+    const rtDestBody = document.getElementById('rt_dest_body');
+    const rtCheckAll = document.getElementById('rt_check_all');
+    const btnTransferRack = document.getElementById('btnTransferRack');
+    const rtSelectedCount = document.getElementById('rt_selected_count');
+    const rackTransferForm = document.getElementById('rackTransferForm');
+
+    function fetchRacks() {
+        const warehouse = rtWarehouse.value;
+        rtSourceRack.innerHTML = '<option value="">-- Pilih Rak Asal --</option>';
+        rtDestRack.innerHTML = '<option value="">-- Pilih Rak Tujuan --</option>';
+        rtSourceRack.disabled = true;
+        rtDestRack.disabled = true;
+        rtSourceBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--text-muted); padding: 40px;">Pilih rak asal terlebih dahulu</td></tr>';
+        rtDestBody.innerHTML = '<tr><td style="text-align: center; color: var(--text-muted); padding: 40px;">Pilih rak tujuan terlebih dahulu</td></tr>';
+        updateRackTransferBtn();
+
+        if (!warehouse) return;
+
+        fetch(`/transfer/api/racks?warehouse=${warehouse}`)
+            .then(res => res.json())
+            .then(data => {
+                if(data.length > 0) {
+                    data.forEach(r => {
+                        const opt = new Option(`${r.rack_code} - ${r.description || r.barcode}`, r.barcode);
+                        rtSourceRack.add(opt.cloneNode(true));
+                        rtDestRack.add(opt);
+                    });
+                    rtSourceRack.disabled = false;
+                    rtDestRack.disabled = false;
+                }
+            })
+            .catch(err => console.error(err));
+    }
+
+    rtWarehouse.addEventListener('change', fetchRacks);
+
+    rtSourceRack.addEventListener('change', function() {
+        const rack = this.value;
+        if (!rack) {
+            rtSourceBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--text-muted); padding: 40px;">Pilih rak asal terlebih dahulu</td></tr>';
+            updateRackTransferBtn();
+            return;
+        }
+
+        rtSourceBody.innerHTML = '<tr><td colspan="2" style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</td></tr>';
+        
+        fetch(`/transfer/api/rack-devices?rack=${rack}`)
+            .then(res => res.json())
+            .then(data => {
+                rtSourceBody.innerHTML = '';
+                if(data.length === 0) {
+                    rtSourceBody.innerHTML = '<tr><td colspan="2" style="text-align: center; color: var(--text-muted); padding: 40px;">Rak ini kosong (tidak ada IN_STOCK)</td></tr>';
+                } else {
+                    data.forEach(d => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td><input type="checkbox" class="rt-checkbox" name="device_ids[]" value="${d.id}"></td>
+                            <td style="font-weight:600; color:var(--accent-blue);">
+                                ${d.serial_number} <br>
+                                <small style="color:var(--text-muted); font-weight:normal;">${d.model || 'Model Lain'} - ${d.unit_condition === 'BEKAS' ? '<span class="badge badge-warning" style="font-size:9px;">BEKAS</span>' : '<span class="badge badge-success" style="font-size:9px;">BARU</span>'}</small>
+                            </td>
+                        `;
+                        rtSourceBody.appendChild(tr);
+                    });
+                }
+                rtCheckAll.checked = false;
+                updateRackTransferBtn();
+            });
+    });
+
+    rtDestRack.addEventListener('change', function() {
+        const rack = this.value;
+        if (!rack) {
+            rtDestBody.innerHTML = '<tr><td style="text-align: center; color: var(--text-muted); padding: 40px;">Pilih rak tujuan terlebih dahulu</td></tr>';
+            updateRackTransferBtn();
+            return;
+        }
+
+        rtDestBody.innerHTML = '<tr><td style="text-align: center;"><i class="fa-solid fa-spinner fa-spin"></i> Memuat...</td></tr>';
+        
+        fetch(`/transfer/api/rack-devices?rack=${rack}`)
+            .then(res => res.json())
+            .then(data => {
+                rtDestBody.innerHTML = '';
+                if(data.length === 0) {
+                    rtDestBody.innerHTML = '<tr><td style="text-align: center; color: var(--text-muted); padding: 40px;">Rak ini kosong</td></tr>';
+                } else {
+                    data.forEach(d => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td style="font-weight:600; color:var(--text-secondary);">
+                                ${d.serial_number} <br>
+                                <small style="color:var(--text-muted); font-weight:normal;">${d.model || 'Model Lain'} - ${d.unit_condition === 'BEKAS' ? 'BEKAS' : 'BARU'}</small>
+                            </td>
+                        `;
+                        rtDestBody.appendChild(tr);
+                    });
+                }
+                updateRackTransferBtn();
+            });
+    });
+
+    rtCheckAll.addEventListener('change', function() {
+        document.querySelectorAll('.rt-checkbox').forEach(cb => cb.checked = this.checked);
+        updateRackTransferBtn();
+    });
+
+    document.addEventListener('change', function(e) {
+        if(e.target && e.target.classList.contains('rt-checkbox')) {
+            updateRackTransferBtn();
+        }
+    });
+
+    function updateRackTransferBtn() {
+        const selected = document.querySelectorAll('.rt-checkbox:checked').length;
+        rtSelectedCount.innerText = selected + ' dipilih';
+        
+        const hasDest = rtDestRack.value !== '';
+        const sameRack = rtSourceRack.value === rtDestRack.value && rtSourceRack.value !== '';
+
+        if (selected > 0 && hasDest && !sameRack) {
+            btnTransferRack.disabled = false;
+        } else {
+            btnTransferRack.disabled = true;
+        }
+    }
+
+    // Initialize rack if warehouse is already selected (e.g. warehouse-bound users)
+    if (rtWarehouse.value) {
+        fetchRacks();
+    }
+
+    rackTransferForm.addEventListener('submit', function(e) {
+        if (rtSourceRack.value === rtDestRack.value) {
+            e.preventDefault();
+            alert('Rak Asal dan Rak Tujuan tidak boleh sama!');
         }
     });
 </script>

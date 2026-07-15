@@ -10,5 +10,10 @@ class Technician extends Model
     public $incrementing = false;
     protected $keyType = 'string';
 
-    protected $fillable = ['code', 'name', 'area'];
+    protected $fillable = ['code', 'name', 'area', 'warehouse_code'];
+
+    public function warehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'warehouse_code', 'code');
+    }
 }

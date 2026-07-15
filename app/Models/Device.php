@@ -14,18 +14,23 @@ class Device extends Model
         'type',
         'model',
         'status',
+        'ownership_status',
+        'warranty_end_date',
         'unit_condition',
         'qc_by',
         'qc_at',
         'qc_notes',
         'current_holder',
         'warehouse_code',
+        'rack_barcode',
         'gsm_simcard_id',
-        'vehicle_plate'
+        'vehicle_plate',
+        'pending_handover_to_user_id',
     ];
 
     protected $casts = [
         'qc_at' => 'datetime',
+        'warranty_end_date' => 'date',
     ];
 
     public function warehouse(): BelongsTo
